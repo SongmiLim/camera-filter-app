@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:background="#000000"
+    android:padding="15dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginBottom="8dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/appTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="camera-filter-app"
+            android:textColor="#F2F2F7"
+            android:textSize="18sp"/>
+    </LinearLayout>
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/previewView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/txtFilterStatus"
+        android:text="NONE"
+        android:textColor="#F2F2F7"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/buttonLayout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <Button
+                android:id="@+id/btnOriginal"
+                android:backgroundTint="#2C2C2E"
+                android:text="Original"
+                android:textColor="#F2F2F7"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:minHeight="0dp"
+                android:layout_marginEnd="10dp"/>
+
+            <Button
+                android:id="@+id/btnGrayScale"
+                android:backgroundTint="#2C2C2E"
+                android:text="GrayScale"
+                android:textColor="#F2F2F7"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:minHeight="0dp"
+                android:layout_marginEnd="10dp"/>
+
+            <Button
+                android:id="@+id/btnBrightness"
+                android:backgroundTint="#2C2C2E"
+                android:text="Brightness"
+                android:textColor="#F2F2F7"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:minHeight="0dp"
+                android:layout_marginEnd="10dp"/>
+        </LinearLayout>
+    </HorizontalScrollView>
+</LinearLayout>
