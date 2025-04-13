@@ -1,8 +1,11 @@
+// assets/shaders/brightness.fs
+#extension GL_OES_EGL_image_external : require
 precision mediump float;
+
+uniform samplerExternalOES uTexture;
 varying vec2 vTexCoord;
 
 void main() {
-    vec3 base = vec3(vTexCoord.x, vTexCoord.y, 1.0);
-    vec3 bright = base + vec3(0.3);
-    gl_FragColor = vec4(min(bright, 1.0), 1.0);
+    vec4 color = texture2D(uTexture, vTexCoord);
+    gl_FragColor = vec4(min(color.rgb + 0.2, 1.0), 1.0);
 }
