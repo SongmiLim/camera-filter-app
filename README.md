@@ -44,9 +44,15 @@ OpenGL ES와 Android Camera2 API를 기반으로, 실시간으로 필터(흑백 
 
 - `GLContext`가 생성되고 나서 OpenGL 명령어를 호출해야 함.
 - OpenGL 명령어는 반드시 `Renderer.onSurfaceCreated()` 또는 `onDrawFrame()`과 같은 적절한 위치에서만 호출되어야 함.
+<br/>
 
+### **4. 카메라 API와 OpenGL 통합 시 프레임 깨짐 현상**
+- 에뮬레이터에서 **카메라 API만 실행** 시에는 문제가 없었으나, **OpenGL Surface**를 사용해 필터를 입히면 **프레임 깨짐** 현상이 발생.  
+- 에뮬레이터 성능 한계 문제인지, 코드 상의 문제 인지 원인 파악 불가 (코드 상의 문제라면 해상도 불일치? 혹은 텍스쳐 사이즈 불일치?)
+<br/>
+
+![녹화_2025_04_14_22_31_20_568](https://github.com/user-attachments/assets/c2894c6f-b4aa-4fe7-a346-ced8e935327a)
 <br/><br/><br/>
-
 
 ## 필터 적용
 
