@@ -13,7 +13,8 @@ import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.camera_filter_app.R;
-import com.example.camera_filter_app.camera.CameraFilterProcessor;
+import com.example.camera_filter_app.camera.CameraHandler;
+import com.example.camera_filter_app.gl.CameraRenderer;
 import com.example.camera_filter_app.model.FilterType;
 import com.example.camera_filter_app.viewmodel.FilterViewModel;
 
@@ -23,7 +24,9 @@ public class FilterActivity extends AppCompatActivity {
     private GLSurfaceView glSurfaceView;
     private TextView filterStatus;
     private FilterViewModel viewModel;
-    private CameraFilterProcessor filterProcessor;
+
+    private CameraRenderer cameraRenderer;
+    private CameraHandler cameraHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,23 +66,57 @@ public class FilterActivity extends AppCompatActivity {
         glSurfaceView = findViewById(R.id.glSurfaceView);
         glSurfaceView.setEGLContextClientVersion(2);
 
-        filterStatus = findViewById(R.id.txtFilterStatus);
-        viewModel = new ViewModelProvider(this).get(FilterViewModel.class);
-        filterProcessor = new CameraFilterProcessor(this, glSurfaceView);
+        cameraRenderer = new CameraRenderer(this);
+        glSurfaceView.setRenderer(cameraRenderer);
+        glSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
 
-        filterProcessor.setOnRendererReadyCallback(() -> {
+        cameraHandler = new CameraHandler(this);
+        cameraRenderer.setSurfaceTextureListener(surfaceTexture -> {
             runOnUiThread(() -> {
-                filterProcessor.init();
-                viewModel.getSelectedFilter().observe(this, filter -> {
-                    filterStatus.setText("filter: " + filter.name());
-                    filterProcessor.setFilter(filter);
-                });
-                viewModel.setFilter(FilterType.ORIGINAL);
+                cameraHandler.startCamera(surfaceTexture);
             });
         });
 
-        findViewById(R.id.btnOriginal).setOnClickListener(v -> viewModel.setFilter(FilterType.ORIGINAL));
-        findViewById(R.id.btnGrayScale).setOnClickListener(v -> viewModel.setFilter(FilterType.GRAYSCALE));
-        findViewById(R.id.btnBrightness).setOnClickListener(v -> viewModel.setFilter(FilterType.BRIGHTNESS));
+        filterStatus = findViewById(R.id.txtFilterStatus);
+        viewModel = new ViewModelProvider(this).get(FilterViewModel.class);
+
+        viewModel.getSelectedFilter().observe(this, filter -> {
+            filterStatus.setText("Filter: " + filter.name());
+        });
+
+        findViewById(R.id.btnOriginal).setOnClickListener(v -> {
+            viewModel.setFilter(FilterType.GRAYSCALE);
+            cameraRenderer.updateFilter(FilterType.ORIGINAL);
+        });
+
+        findViewById(R.id.btnGrayScale).setOnClickListener(v -> {
+            viewModel.setFilter(FilterType.GRAYSCALE);
+            cameraRenderer.updateFilter(FilterType.GRAYSCALE);
+
+        });
+
+        findViewById(R.id.btnBrightness).setOnClickListener(v -> {
+            viewModel.setFilter(FilterType.BRIGHTNESS);
+            cameraRenderer.updateFilter(FilterType.BRIGHTNESS);
+        });
     }
-}
+
+        @Override
+        protected void onResume() {
+            super.onResume();
+            glSurfaceView.onResume();
+        }
+
+        @Override
+        protected void onPause() {
+            super.onPause();
+            cameraHandler.stopCamera();
+            glSurfaceView.onPause();
+        }
+
+        @Override
+        protected void onDestroy() {
+            super.onDestroy();
+            cameraRenderer.release();
+        }
+    }

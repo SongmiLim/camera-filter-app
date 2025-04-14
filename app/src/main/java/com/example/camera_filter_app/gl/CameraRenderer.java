@@ -5,10 +5,8 @@ import android.graphics.SurfaceTexture;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
-import android.view.Surface;
 
 import com.example.camera_filter_app.model.FilterType;
-import com.example.camera_filter_app.utils.ShaderLoader;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -18,18 +16,21 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 public class CameraRenderer implements GLSurfaceView.Renderer {
+    public interface SurfaceTextureListener {
+        void onSurfaceTextureCreated(SurfaceTexture surfaceTexture);
+    }
+
     private final Context context;
+    private int oesTextureId;
+    private SurfaceTexture surfaceTexture;
+    private SurfaceTextureListener listener;
+    private ShaderProgram shaderProgram;
+
     private FilterType currentFilter = FilterType.ORIGINAL;
-    private FilterType pendingFilter = null;
+    private FilterType pendingFilter = FilterType.ORIGINAL;
 
     private FloatBuffer vertexBuffer;
     private FloatBuffer texCoordBuffer;
-    private int program;
-    private int oesTextureId;
-    private SurfaceTexture cameraSurfaceTexture;
-    private Surface surface;
-
-    private OnRendererReadyCallback callback;
 
     private final float[] squareCoords = {
             -1f, 1f, -1f, -1f, 1f, 1f, 1f, -1f
@@ -44,37 +45,23 @@ public class CameraRenderer implements GLSurfaceView.Renderer {
         initBuffers();
     }
 
-    public void updateFilter(FilterType type) {
-        pendingFilter = type;
+    public void setSurfaceTextureListener(SurfaceTextureListener listener) {
+        this.listener = listener;
     }
 
-    public Surface getSurface() {
-        return surface;
-    }
-
-    public void setOnRendererReadyCallback(OnRendererReadyCallback callback) {
-        this.callback = callback;
-    }
-
-    public void release() {
-        if (surface != null) surface.release();
-    }
-
-    public interface OnRendererReadyCallback {
-        void onRendererReady();
+    public void updateFilter(FilterType filter) {
+        this.pendingFilter = filter;
     }
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         oesTextureId = createOESTexture();
-        cameraSurfaceTexture = new SurfaceTexture(oesTextureId);
-        cameraSurfaceTexture.setDefaultBufferSize(1280, 720);
+        surfaceTexture = new SurfaceTexture(oesTextureId);
 
-        surface = new Surface(cameraSurfaceTexture);
-        setShader(currentFilter);
+        shaderProgram = new ShaderProgram(context, currentFilter);
 
-        if (callback != null) {
-            callback.onRendererReady();
+        if (listener != null) {
+            listener.onSurfaceTextureCreated(surfaceTexture);
         }
     }
 
@@ -85,33 +72,38 @@ public class CameraRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onDrawFrame(GL10 gl) {
-        if (pendingFilter != null && pendingFilter != currentFilter) {
-            setShader(pendingFilter);
+        if (pendingFilter != currentFilter) {
             currentFilter = pendingFilter;
-            pendingFilter = null;
+            shaderProgram.release(); // 이전 셰이더 정리
+            shaderProgram = new ShaderProgram(context, currentFilter);
         }
 
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-        cameraSurfaceTexture.updateTexImage();
+        surfaceTexture.updateTexImage();
 
-        GLES20.glUseProgram(program);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+        shaderProgram.use();
 
-        int posHandle = GLES20.glGetAttribLocation(program, "vPosition");
+        int posHandle = GLES20.glGetAttribLocation(shaderProgram.getProgramId(), "vPosition");
         GLES20.glEnableVertexAttribArray(posHandle);
         GLES20.glVertexAttribPointer(posHandle, 2, GLES20.GL_FLOAT, false, 0, vertexBuffer);
 
-        int texHandle = GLES20.glGetAttribLocation(program, "aTexCoord");
+        int texHandle = GLES20.glGetAttribLocation(shaderProgram.getProgramId(), "aTexCoord");
         GLES20.glEnableVertexAttribArray(texHandle);
         GLES20.glVertexAttribPointer(texHandle, 2, GLES20.GL_FLOAT, false, 0, texCoordBuffer);
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, oesTextureId);
-        GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uTexture"), 0);
+        GLES20.glUniform1i(GLES20.glGetUniformLocation(shaderProgram.getProgramId(), "uTexture"), 0);
 
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+        shaderProgram.draw();
 
         GLES20.glDisableVertexAttribArray(posHandle);
         GLES20.glDisableVertexAttribArray(texHandle);
+    }
+
+    public void release() {
+        shaderProgram.release();
+        surfaceTexture.release();
     }
 
     private void initBuffers() {
@@ -136,37 +128,5 @@ public class CameraRenderer implements GLSurfaceView.Renderer {
         GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
 
         return textureId;
-    }
-
-    private void setShader(FilterType type) {
-        String vertex = ShaderLoader.loadFromAssets(context, "shaders/default.vs");
-        String fragment;
-
-        switch (type) {
-            case GRAYSCALE:
-                fragment = ShaderLoader.loadFromAssets(context, "shaders/grayscale.fs");
-                break;
-            case BRIGHTNESS:
-                fragment = ShaderLoader.loadFromAssets(context, "shaders/brightness.fs");
-                break;
-            default:
-                fragment = ShaderLoader.loadFromAssets(context, "shaders/original.fs");
-                break;
-        }
-
-        int vertexShader = compileShader(GLES20.GL_VERTEX_SHADER, vertex);
-        int fragShader = compileShader(GLES20.GL_FRAGMENT_SHADER, fragment);
-
-        program = GLES20.glCreateProgram();
-        GLES20.glAttachShader(program, vertexShader);
-        GLES20.glAttachShader(program, fragShader);
-        GLES20.glLinkProgram(program);
-    }
-
-    private int compileShader(int type, String code) {
-        int shader = GLES20.glCreateShader(type);
-        GLES20.glShaderSource(shader, code);
-        GLES20.glCompileShader(shader);
-        return shader;
     }
 }
